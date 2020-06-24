@@ -10,6 +10,7 @@ public class touch_input : MonoBehaviour
     private float radian = 0f;
     public double angle = 0d;
     public bool touched = false; //for detecting new touch
+    private float pointMax = 50; //maxmimum touch move get as just pointed
     public string inputType = "None"; // User input is "None" or "Point" or "Swap"
     // Start is called before the first frame update
     void Start()
@@ -33,18 +34,20 @@ public class touch_input : MonoBehaviour
                     break;
                 case TouchPhase.Ended:
                     pos_E = touch.position;
-                    angle = getAngle(pos_E);
+                    // angle = getAngle(pos_E);
                     // Debug.Log(angle);
                     touched = true;
+                    CalculateDelta(pos_S,pos_E);
                     break;
             }
-
         }
     }
 
+    void CalculateDelta(Vector2 start,Vector2 end){
+        delta.x = end.x - start.x;
+        delta.y = end.y - start.y;
+    }
     public double getAngle(Vector2 posE){
-        delta.x = posE.x - pos_S.x;
-        delta.y = posE.y - pos_S.y;
         radian = Mathf.Atan2(delta.y,delta.x);
         if (radian<0f)
         {
@@ -59,12 +62,16 @@ public class touch_input : MonoBehaviour
     public string getTouchType(){
         string ret="None";
         if(touched){
-            float SubX = Mathf.Abs(pos_E.x) - Mathf.Abs(pos_S.x);
-            float SubY = Mathf.Abs(pos_E.y) - Mathf.Abs(pos_S.y);
-            if(SubX < 20    && SubY < 20){
+            float SubX = Mathf.Abs(pos_E.x - pos_S.x);
+            float SubY = Mathf.Abs(pos_E.y - pos_S.y);
+            if(SubX < pointMax    && SubY < pointMax){
                 ret = "Point";
+                Debug.Log("Pointed");
+                // Debug.Log("X" +pos_E.x + "\nY"+pos_E.y);
+                touched=false;
             }else{
                 ret = "Swap";
+                Debug.Log("Swapped");
             }
         }
         return ret;
