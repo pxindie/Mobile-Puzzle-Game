@@ -1,55 +1,42 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 public class BallControl : MonoBehaviour
 {
-    public UnityEngine.UI.Text debugtext;
-    public UnityEngine.UI.Text fps_counter;
-	public static float ivmeR = 0.5f; // reset acceleration to default
-	public float ivme = ivmeR; // acceleration
-	public static float dragcof = 0.99f; // acceleration
-	public float stopLimit = 0.02f; // acceleration
-    public float gravityCoef = 0.0001f;
+    public UnityEngine.UI.Text failedmessage;
+	public static float ivmeR = 0.5f; // reset acceleration to defaul
+	public  float ivme = ivmeR; // reset acceleration to defaul
     private Vector2 speed;
 	private Rigidbody2D ball;
     private touch_input touchinput;
     public int nearBase = -2;
-    public bool docked = false;
     GameObject[] bases;
-    public List<int> way = new List<int>();
-    public List<int[]> connect = new List<int[]>();
+    GameObject deepmind;
+    public List<int> way;
+    public List<int[]> wayCouples = new List<int[]>();
+    public bool docked,dockaccess,dockinput;
+
     // Start is called before the first frame update
     void Start()
     {
+        deepmind = GameObject.Find("DeepMind");
         ball = GetComponent<Rigidbody2D> ();
-        touchinput = GetComponent<touch_input>();
-        // touch_input = GameObject.Find("touch_input.cs").GetComponent<ItemsScript>();
+        touchinput = deepmind.GetComponent<touch_input>();
     }
 
     // Update is called once per frame
     void Update()
     {
         // string touchtype = touchinput.getTouchType;
-        if (touchinput.getTouchType()=="Swap")
-        {
+        if (touchinput.getTouchInput("BallControl")=="Swap"){
+            ivme = ivmeR;
             docked=false;
-            ivme=ivmeR;
-            touchinput.touched = false;
-        }
-
-        if (speed.x!=0||speed.y!=0)
-        {
-            if(ivme < stopLimit) {
-                ivme = 0;
-            } else { 
-                ivme = ivme*dragcof;
-            }
         }
         speed.x = ivme*touch_input.delta.x;
         speed.y = ivme*touch_input.delta.y;
         gravity();
         ball.velocity = new Vector2(speed.x,speed.y);
-        debuging();
     }
 
     void gravity(){
@@ -77,21 +64,19 @@ public class BallControl : MonoBehaviour
     public float getHippo(float x,float y){
         return Mathf.Sqrt(Mathf.Pow(x,2)+Mathf.Pow(y,2));
     }
-    void debuging(){
-        debugtext.text = "Speed : " + speed.x + " " + speed.y + "\nTarget : " + nearBase + "\nDocked? : " +docked;
-        float current = 0;
-        current = (int)(1f / Time.unscaledDeltaTime);
-        fps_counter.text = ((int) current)+"FPS";
-    }
+
     private void OnTriggerEnter2D(Collider2D other) {
         ivme = 0;
         docked = true;
         way.Add(nearBase);
-        if(way.Count>1)
-        {
-            int[] newConnect = {way[way.Count-2],way[way.Count-1]};
-            connect.Add(newConnect);
+        if(way.Count>1){
+            int[] couple = {(int)way[way.Count-1],(int)way[way.Count-2]};
+            // Debug.Log(couplea[0]+couplea[1].ToString());
+            // Debug.Log(coupleb[0]+coupleb[1].ToString());
+            wayCouples.Add(couple);
         }
+        checkFailure(); 
+        // Debug.Log(way[way.Count-1]);
     }
     void DockConnect(){
         float dockdeltaX = ball.position.x -bases[nearBase].transform.position.x;
@@ -100,10 +85,40 @@ public class BallControl : MonoBehaviour
             speed.y = (dockdeltaY<0?dockdeltaY>-1:dockdeltaY<1) ? 0f:-dockdeltaY*15f;
         if( (dockdeltaX<0?dockdeltaX>-1:dockdeltaX<1)  &&  (dockdeltaY<0?dockdeltaY>-1:dockdeltaY<1)   ){docked=true;}
     }
-    void drawLines(){ // this void not completed yet
-        for (int i = 0; i < way.Count; i++)
-        {
-            
+
+    void checkFailure()
+    {
+        Debug.Log("Failure Checked");
+        if(way.Count>1){
+            if(way[way.Count-1]==way[way.Count-2])    // first failure if re dock same base
+            {
+                failure();
+            }
+            if(checkSameItem()) // follow the same path again
+            {
+                failure();
+            }
         }
+        if(false) //ball escape from the screen
+        {}
+    }
+
+    void failure(){
+        Debug.Log("**********************YOU FAILED**********************");
+        failedmessage.text = "YOU FAILED";
+    }
+
+    bool checkSameItem(){
+        for (int i = 0; i < wayCouples.Count; i++)
+        {
+            for (int u = i+1; u < wayCouples.Count; u++)
+            {
+                Debug.Log("Control List : "+i+" -- "+u+" ("+wayCouples.Count+")");
+                bool fullySame = wayCouples.ElementAt(i)[0]==wayCouples.ElementAt(u)[0]&&wayCouples.ElementAt(i)[1]==wayCouples.ElementAt(u)[1];
+                bool reverseSame = wayCouples.ElementAt(i)[0]==wayCouples.ElementAt(u)[1]&&wayCouples.ElementAt(i)[1]==wayCouples.ElementAt(u)[0];
+                if(fullySame||reverseSame){ return true;}
+            }
+        }
+        return false;
     }
 }
