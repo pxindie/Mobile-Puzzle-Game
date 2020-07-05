@@ -1,40 +1,47 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using System.Linq;
+
 public class BallControl : MonoBehaviour
-{
-    public UnityEngine.UI.Text failedmessage;
+{ 
 	public static float ivmeR = 0.5f; // reset acceleration to defaul
-	public  float ivme = ivmeR; // reset acceleration to defaul
+	public  float ivmeX = ivmeR,ivmeY = ivmeR; // reset acceleration to defaul
     private Vector2 speed;
 	private Rigidbody2D ball;
     private touch_input touchinput;
+    private generalScript Engine;
+    private pathScript pathScr;
     public int nearBase = -2;
     GameObject[] bases;
     GameObject deepmind;
-    public List<int> way;
-    public List<int[]> wayCouples = new List<int[]>();
+    public Vector2 screenPoint;
     public bool docked,dockaccess,dockinput;
 
     // Start is called before the first frame update
     void Start()
     {
         deepmind = GameObject.Find("DeepMind");
-        ball = GetComponent<Rigidbody2D> ();
+        ball = GetComponent<Rigidbody2D>();
         touchinput = deepmind.GetComponent<touch_input>();
+        pathScr = deepmind.GetComponent<pathScript>();
+        Engine = deepmind.GetComponent<generalScript>();
+
     }
 
     // Update is called once per frame
     void Update()
     {
-        // string touchtype = touchinput.getTouchType;
-        if (touchinput.getTouchInput("BallControl")=="Swap"){
-            ivme = ivmeR;
-            docked=false;
+        if(!Engine.fail&&!Engine.win){
+            // string touchtype = touchinput.getTouchType;
+            if (touchinput.getTouchInput("BallControl")=="Swap"){
+                ivmeX = ivmeR;
+                ivmeY = ivmeR;
+                docked=false;
+            }
         }
-        speed.x = ivme*touch_input.delta.x;
-        speed.y = ivme*touch_input.delta.y;
+        bounce();
+        speed.x = ivmeX*touch_input.delta.x;
+        speed.y = ivmeY*touch_input.delta.y;
         gravity();
         ball.velocity = new Vector2(speed.x,speed.y);
     }
@@ -66,17 +73,17 @@ public class BallControl : MonoBehaviour
     }
 
     private void OnTriggerEnter2D(Collider2D other) {
-        ivme = 0;
+        ivmeX = 0;
+        ivmeY = 0;
         docked = true;
-        way.Add(nearBase);
-        if(way.Count>1){
-            int[] couple = {(int)way[way.Count-1],(int)way[way.Count-2]};
-            // Debug.Log(couplea[0]+couplea[1].ToString());
-            // Debug.Log(coupleb[0]+coupleb[1].ToString());
-            wayCouples.Add(couple);
+        Engine.way.Add(nearBase);
+        if(Engine.way.Count>1){
+            if(!(Engine.way[Engine.way.Count-2]==nearBase)){
+                int[] couple = {(int)Engine.way[Engine.way.Count-2],(int)Engine.way[Engine.way.Count-1]};
+                Engine.wayCouples.Add(couple);
+                Engine.checkFailure();
+            }else{Engine.way.RemoveAt(Engine.way.Count-1);}
         }
-        checkFailure(); 
-        // Debug.Log(way[way.Count-1]);
     }
     void DockConnect(){
         float dockdeltaX = ball.position.x -bases[nearBase].transform.position.x;
@@ -85,40 +92,24 @@ public class BallControl : MonoBehaviour
             speed.y = (dockdeltaY<0?dockdeltaY>-1:dockdeltaY<1) ? 0f:-dockdeltaY*15f;
         if( (dockdeltaX<0?dockdeltaX>-1:dockdeltaX<1)  &&  (dockdeltaY<0?dockdeltaY>-1:dockdeltaY<1)   ){docked=true;}
     }
-
-    void checkFailure()
-    {
-        Debug.Log("Failure Checked");
-        if(way.Count>1){
-            if(way[way.Count-1]==way[way.Count-2])    // first failure if re dock same base
-            {
-                failure();
-            }
-            if(checkSameItem()) // follow the same path again
-            {
-                failure();
-            }
-        }
-        if(false) //ball escape from the screen
-        {}
-    }
-
-    void failure(){
-        Debug.Log("**********************YOU FAILED**********************");
-        failedmessage.text = "YOU FAILED";
-    }
-
-    bool checkSameItem(){
-        for (int i = 0; i < wayCouples.Count; i++)
+    void bounce(){
+        float deltaX = touch_input.delta.x;
+        float deltaY = touch_input.delta.y;
+        screenPoint = Camera.main.WorldToScreenPoint(transform.position);
+        if(screenPoint.x<5)
         {
-            for (int u = i+1; u < wayCouples.Count; u++)
-            {
-                Debug.Log("Control List : "+i+" -- "+u+" ("+wayCouples.Count+")");
-                bool fullySame = wayCouples.ElementAt(i)[0]==wayCouples.ElementAt(u)[0]&&wayCouples.ElementAt(i)[1]==wayCouples.ElementAt(u)[1];
-                bool reverseSame = wayCouples.ElementAt(i)[0]==wayCouples.ElementAt(u)[1]&&wayCouples.ElementAt(i)[1]==wayCouples.ElementAt(u)[0];
-                if(fullySame||reverseSame){ return true;}
-            }
+            ivmeX = Engine.IsNegative(deltaX) ? -Mathf.Abs(ivmeX) : Mathf.Abs(ivmeX);
+        }else if(screenPoint.x>Screen.width-5)
+        {
+            ivmeX = Engine.IsNegative(deltaX) ? Mathf.Abs(ivmeX) : -Mathf.Abs(ivmeX);
         }
-        return false;
+
+        if(screenPoint.y<5)
+        {
+            ivmeY = Engine.IsNegative(deltaY) ? -Mathf.Abs(ivmeY) : Mathf.Abs(ivmeY);
+        }else if(screenPoint.y>Screen.height-5)
+        {
+            ivmeY = Engine.IsNegative(deltaY) ? Mathf.Abs(ivmeY) : -Mathf.Abs(ivmeY);
+        }
     }
 }
